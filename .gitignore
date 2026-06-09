@@ -42,3 +42,19 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Angular
+frontend/node_modules/
+frontend/.angular/
+frontend/dist/
+frontend/tmp/
+frontend/out-tsc/
+
+# Spring Boot
+backend/target/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
