@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.math.BigDecimal;
+import java.util.Objects;
 
 /**
  * Service Layer — contains all the business logic.
@@ -48,7 +49,10 @@ public class AccountService {
         return AccountResponse.from(account); //Convert to DTO for response
     }
 
-
+    /*
+        * Creates a new bank account.
+        * @Transactional without readOnly — this operation writes to the DB.
+    */
     @Transactional //This method modifies the database, so we need @Transactional without readOnly
     public AccountResponse createAccount(CreateAccountRequest request, String userId) {
         log.info("Creating new {} account for user: {}", request.getAccountType(), userId);
@@ -66,7 +70,7 @@ public class AccountService {
                 .build();
 
 
-        Account saved = accountRepository.save(account);
+        Account saved = accountRepository.save(Objects.requireNonNull(account, "Account cannot be null")); //Save to DB and get the saved entity with ID
         log.info("Account created with ID: {}", saved.getId());
 
         return AccountResponse.from(saved);

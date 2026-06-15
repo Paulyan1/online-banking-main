@@ -29,7 +29,7 @@ public class AccountController {
     public ResponseEntity<List<AccountSummary>> getMyAccounts(
             @AuthenticationPrincipal Jwt jwt) {
 
-        return ResponseEntity.ok(accountService.getMyAccounts(jwt.getSubject()));
+        return ResponseEntity.ok(accountService.getMyAccounts(getSubject(jwt)));
     }
 
     @GetMapping("/{id}")
@@ -37,18 +37,20 @@ public class AccountController {
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
 
-        return ResponseEntity.ok(accountService.getAccountById(id, jwt.getSubject()));
+        return ResponseEntity.ok(accountService.getAccountById(id, getSubject(jwt)));
     }
 
+    
     @PostMapping
     public ResponseEntity<AccountResponse> createAccount(
             @Valid @RequestBody CreateAccountRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-
+            log.info("Creating account request: {}", request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(accountService.createAccount(request, jwt.getSubject()));
+                .body(accountService.createAccount(request, getSubject(jwt)));
     }
 
+    // Endpoint to check if the account has sufficient balance for a transaction
     @GetMapping("/balance")
     public ResponseEntity<BalanceResponse> checkBalance(
             @RequestParam String accountNumber,
@@ -62,5 +64,10 @@ public class AccountController {
     public ResponseEntity<Void> updateBalance(@RequestBody UpdateBalanceRequest request) {
         accountService.updateBalance(request.getAccountNumber(), request.getAmount());
         return ResponseEntity.noContent().build();
+    }
+
+    // Helper method to extract user ID from JWT
+    private String getSubject(Jwt jwt) {
+        return jwt != null ? jwt.getSubject() : "local-test-user";
     }
 }
