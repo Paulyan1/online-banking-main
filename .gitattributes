@@ -1,0 +1,11 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Maven wrapper script should use LF
+**/mvnw text eol=lf
+
+# Windows command files should use CRLF
+**/*.cmd text eol=crlf
+
+# Shell scripts should use LF
+**/*.sh text eol=lf
