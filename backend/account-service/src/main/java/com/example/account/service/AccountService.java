@@ -49,6 +49,13 @@ public class AccountService {
         return AccountResponse.from(account); //Convert to DTO for response
     }
 
+    public AccountResponse getAccountByNumber(String accountNumber) {
+    Account account = accountRepository.findByAccountNumber(accountNumber)
+            .orElseThrow(() -> new RuntimeException("Account not found: " + accountNumber));
+
+    return AccountResponse.from(account);
+}
+
     /*
         * Creates a new bank account.
         * @Transactional without readOnly — this operation writes to the DB.

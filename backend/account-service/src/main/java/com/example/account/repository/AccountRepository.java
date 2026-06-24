@@ -27,5 +27,5 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     @Query("SELECT a FROM Account a WHERE a.userId = :userId AND a.status = 'ACTIVE'")
     List<Account> findActiveAccountsByUserId(@Param("userId") String userId);
-    
+
 }

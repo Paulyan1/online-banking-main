@@ -40,6 +40,11 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccountById(id, getSubject(jwt)));
     }
 
+    @GetMapping("/by-number/{accountNumber}")
+    public ResponseEntity<AccountResponse> getAccountByNumber(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(accountService.getAccountByNumber(accountNumber));
+    }
+
     
     @PostMapping
     public ResponseEntity<AccountResponse> createAccount(
