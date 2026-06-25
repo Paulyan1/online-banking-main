@@ -10,7 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AccountService } from '../../../core/services/account.service';
 import { AccountSummary } from '../../../core/models/account.model';
-import { IbanFormatPipe } from '../../../shared/pipes/iban-format.pipe';
+import { AccountFormatPipe } from '../../../shared/pipes/account-format.pipe';
 import { AccountCreateDialogComponent } from '../account-create-dialog/account-create-dialog.component';
 
 @Component({
@@ -25,7 +25,7 @@ import { AccountCreateDialogComponent } from '../account-create-dialog/account-c
     MatButtonModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
-    IbanFormatPipe,
+    AccountFormatPipe,
   ],
   templateUrl: './account-list.component.html',
   styleUrl: './account-list.component.scss',

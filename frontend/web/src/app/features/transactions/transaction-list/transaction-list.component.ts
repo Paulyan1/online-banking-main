@@ -15,7 +15,7 @@ import { TransactionService } from '../../../core/services/transaction.service';
 import { AccountService } from '../../../core/services/account.service';
 import { TransactionResponse, PagedTransactionsResponse } from '../../../core/models/transaction.model';
 import { AccountSummary } from '../../../core/models/account.model';
-import { IbanFormatPipe } from '../../../shared/pipes/iban-format.pipe';
+import { AccountFormatPipe } from '../../../shared/pipes/account-format.pipe';
 import { TransferFormComponent } from '../transfer-form/transfer-form.component';
 
 @Component({
@@ -36,7 +36,7 @@ import { TransferFormComponent } from '../transfer-form/transfer-form.component'
     MatChipsModule,
     MatProgressSpinnerModule,
     MatExpansionModule,
-    IbanFormatPipe,
+    AccountFormatPipe,
     TransferFormComponent,
   ],
   templateUrl: './transaction-list.component.html',
@@ -52,9 +52,9 @@ export class TransactionListComponent implements OnInit {
   readonly totalElements = signal(0);
   readonly pageSize = signal(10);
   readonly currentPage = signal(0);
-  readonly ibanFilter = signal('');
+  readonly accountFilter = signal('');
 
-  readonly displayedColumns = ['date', 'description', 'sourceIban', 'targetIban', 'amount', 'status'];
+  readonly displayedColumns = ['date', 'description', 'sourceAccount', 'targetAccount', 'amount', 'status'];
 
   ngOnInit(): void {
     this.loadAccounts();
@@ -69,7 +69,7 @@ export class TransactionListComponent implements OnInit {
 
   loadTransactions(): void {
     this.loading.set(true);
-    const filter = this.ibanFilter().trim();
+    const filter = this.accountFilter().trim();
 
     const obs = filter
       ? this.transactionService.getTransactionByAccount(filter, this.currentPage(), this.pageSize())
@@ -97,7 +97,7 @@ export class TransactionListComponent implements OnInit {
   }
 
   clearFilter(): void {
-    this.ibanFilter.set('');
+    this.accountFilter.set('');
     this.currentPage.set(0);
     this.loadTransactions();
   }
@@ -108,6 +108,6 @@ export class TransactionListComponent implements OnInit {
   }
 
   isIncoming(txn: TransactionResponse): boolean {
-    return this.accounts().some(a => a.accountNumber === txn.targetIban);
+    return this.accounts().some(a => a.accountNumber === txn.targetAccount);
   }
 }

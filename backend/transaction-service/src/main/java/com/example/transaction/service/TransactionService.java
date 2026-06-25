@@ -99,7 +99,12 @@ public class TransactionService {
 
     public PagedTransactionResponse getTransactionByAccount(String account, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Transaction> result = transactionRepository.findByAccount(account, pageable);
+
+        Page<Transaction> result = transactionRepository.findBySourceAccountOrTargetAccount(
+                account,
+                account,
+                pageable
+        );
 
         return PagedTransactionResponse.builder()
                 .transactions(result.getContent().stream().map(TransactionResponse::from).toList())

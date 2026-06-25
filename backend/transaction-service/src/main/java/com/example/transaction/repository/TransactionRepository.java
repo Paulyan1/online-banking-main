@@ -17,5 +17,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, String
     @Query("SELECT t FROM Transaction t WHERE t.sourceAccountId = :account OR t.targetAccountId = :account ORDER BY t.createdAt DESC")
     Page<Transaction> findByAccount(@Param("account") String account, Pageable pageable);
 
+    Page<Transaction> findBySourceAccountOrTargetAccount(
+        String sourceAccount,
+        String targetAccount,
+        Pageable pageable
+    );
+
     boolean existsByReference(String reference);
 }

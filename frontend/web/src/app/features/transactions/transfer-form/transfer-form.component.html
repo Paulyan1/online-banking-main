@@ -1,17 +1,17 @@
 <form [formGroup]="form" (ngSubmit)="submit()" class="transfer-form">
   <div class="form-row">
-    <!-- Source IBAN -->
+    <!-- Source Account -->
     <mat-form-field appearance="outline" class="form-field">
       <mat-label>From Account</mat-label>
       <mat-icon matPrefix>account_balance_wallet</mat-icon>
-      <mat-select formControlName="sourceIban">
+      <mat-select formControlName="sourceAccount">
         @for (account of accounts(); track account.id) {
           <mat-option [value]="account.accountNumber">
-            {{ account.accountNumber | ibanFormat }} — {{ account.currency }} {{ account.balance | number:'1.2-2' }}
+            {{ account.accountNumber | accountFormat }} — {{ account.currency }} {{ account.balance | number:'1.2-2' }}
           </mat-option>
         }
       </mat-select>
-      @if (form.get('sourceIban')?.hasError('required') && form.get('sourceIban')?.touched) {
+      @if (form.get('sourceAccount')?.hasError('required') && form.get('sourceAccount')?.touched) {
         <mat-error>Please select a source account</mat-error>
       }
     </mat-form-field>
@@ -22,14 +22,14 @@
       <mat-icon matPrefix>send</mat-icon>
       <input
         matInput
-        formControlName="targetIban"
+        formControlName="targetAccount"
         placeholder="e.g. 0000000"
         autocomplete="off"
       />
-      @if (form.get('targetIban')?.hasError('required') && form.get('targetIban')?.touched) {
+      @if (form.get('targetAccount')?.hasError('required') && form.get('targetAccount')?.touched) {
         <mat-error>Target Account Number is required</mat-error>
       }
-      @if (form.get('targetIban')?.hasError('sameIban')) {
+      @if (form.get('targetAccount')?.hasError('sameAccount')) {
         <mat-error>Source and target Account Number cannot be the same</mat-error>
       }
     </mat-form-field>

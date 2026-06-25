@@ -120,7 +120,7 @@
             <th mat-header-cell *matHeaderCellDef>Description</th>
             <td mat-cell *matCellDef="let txn">
               <div class="txn-desc">{{ txn.description || 'Transfer' }}</div>
-              <div class="txn-iban">{{ txn.targetIban | ibanFormat }}</div>
+              <div class="txn-account">{{ txn.targetAccount | accountFormat }}</div>
             </td>
           </ng-container>
 

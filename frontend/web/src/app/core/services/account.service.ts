@@ -21,9 +21,9 @@ export class AccountService {
     return this.http.post<AccountSummary>(this.baseUrl, request);
   }
 
-  checkBalance(iban: string, amount: number): Observable<BalanceResponse> {
+  checkBalance(account: string, amount: number): Observable<BalanceResponse> {
     const params = new HttpParams()
-      .set('iban', iban)
+      .set('account', account)
       .set('amount', amount.toString());
     return this.http.get<BalanceResponse>(`${this.baseUrl}/balance`, { params });
   }

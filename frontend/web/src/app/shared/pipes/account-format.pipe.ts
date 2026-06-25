@@ -1,10 +1,10 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({
-  name: 'ibanFormat',
+  name: 'accountFormat',
   standalone: true,
 })
-export class IbanFormatPipe implements PipeTransform {
+export class AccountFormatPipe implements PipeTransform {
   transform(value: string | null | undefined): string {
     if (!value) return '';
     // Remove existing spaces and format in groups of 4

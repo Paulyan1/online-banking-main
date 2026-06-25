@@ -11,7 +11,7 @@ import { AccountService } from '../../core/services/account.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { AccountSummary } from '../../core/models/account.model';
 import { TransactionResponse } from '../../core/models/transaction.model';
-import { IbanFormatPipe } from '../../shared/pipes/iban-format.pipe';
+import { AccountFormatPipe } from '../../shared/pipes/account-format.pipe';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,7 +27,7 @@ import { IbanFormatPipe } from '../../shared/pipes/iban-format.pipe';
     MatTableModule,
     MatChipsModule,
     MatProgressSpinnerModule,
-    IbanFormatPipe,
+    AccountFormatPipe,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -85,6 +85,6 @@ export class DashboardComponent implements OnInit {
   }
 
   isIncoming(txn: TransactionResponse, accounts: AccountSummary[]): boolean {
-    return accounts.some(a => a.accountNumber === txn.targetIban);
+    return accounts.some(a => a.accountNumber === txn.targetAccount);
   }
 }

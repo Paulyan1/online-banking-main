@@ -22,9 +22,12 @@ export class TransactionService {
 
   getTransactionByAccount(account: string, page = 0, size = 10): Observable<PagedTransactionsResponse> {
     const params = new HttpParams()
-      .set('account', account)
       .set('page', page.toString())
       .set('size', size.toString());
-    return this.http.get<PagedTransactionsResponse>(`${this.baseUrl}/history/${account}`, { params });
+
+    return this.http.get<PagedTransactionsResponse>(
+      `${this.baseUrl}/history/${account}`,
+      { params }
+    );
   }
 }

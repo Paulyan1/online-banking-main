@@ -10,15 +10,15 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TransactionService } from '../../../core/services/transaction.service';
 import { AccountSummary } from '../../../core/models/account.model';
-import { IbanFormatPipe } from '../../../shared/pipes/iban-format.pipe';
+import { AccountFormatPipe } from '../../../shared/pipes/account-format.pipe';
 
-function notSameIban(control: AbstractControl): ValidationErrors | null {
+function notSameAccount(control: AbstractControl): ValidationErrors | null {
   const form = control.parent;
   if (!form) return null;
-  const source = form.get('sourceIban')?.value;
-  const target = form.get('targetIban')?.value;
+  const source = form.get('sourceAccount')?.value;
+  const target = form.get('targetAccount')?.value;
   if (source && target && source === target) {
-    return { sameIban: true };
+    return { sameAccount: true };
   }
   return null;
 }
@@ -35,7 +35,7 @@ function notSameIban(control: AbstractControl): ValidationErrors | null {
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    IbanFormatPipe,
+    AccountFormatPipe,
   ],
   templateUrl: './transfer-form.component.html',
   styleUrl: './transfer-form.component.scss',
@@ -51,8 +51,8 @@ export class TransferFormComponent implements OnInit {
   readonly loading = signal(false);
 
   readonly form = this.fb.group({
-    sourceIban: ['', Validators.required],
-    targetIban: ['', [Validators.required, notSameIban]],
+    sourceAccount: ['', Validators.required],
+    targetAccount: ['', [Validators.required, notSameAccount]],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
     currency: ['CAD', Validators.required],
     description: [''],
@@ -61,8 +61,8 @@ export class TransferFormComponent implements OnInit {
   readonly currencies = ['CAD', 'USD', 'CNY', 'EUR'];
 
   ngOnInit(): void {
-    this.form.get('sourceIban')?.valueChanges.subscribe(() => {
-      this.form.get('targetIban')?.updateValueAndValidity();
+    this.form.get('sourceAccount')?.valueChanges.subscribe(() => {
+      this.form.get('targetAccount')?.updateValueAndValidity();
     });
   }
 
@@ -73,8 +73,8 @@ export class TransferFormComponent implements OnInit {
     const v = this.form.getRawValue();
 
     this.transactionService.transfer({
-      sourceAccount: v.sourceIban!,
-      targetAccount: v.targetIban!,
+      sourceAccount: v.sourceAccount!,
+      targetAccount: v.targetAccount!,
       amount: v.amount!,
       currency: v.currency!,
       description: v.description ?? undefined,

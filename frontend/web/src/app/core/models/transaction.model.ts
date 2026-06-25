@@ -11,8 +11,8 @@ export interface TransferRequest {
 
 export interface TransactionResponse {
   id: string;
-  sourceIban: string;
-  targetIban: string;
+  sourceAccount: string;
+  targetAccount: string;
   amount: number;
   currency: string;
   description?: string;
