@@ -29,7 +29,7 @@ public class AccountController {
     public ResponseEntity<List<AccountSummary>> getMyAccounts(
             @AuthenticationPrincipal Jwt jwt) {
 
-        return ResponseEntity.ok(accountService.getMyAccounts(getSubject(jwt)));
+        return ResponseEntity.ok(accountService.getMyAccounts(jwt.getSubject()));
     }
 
     @GetMapping("/{id}")
@@ -37,7 +37,7 @@ public class AccountController {
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
 
-        return ResponseEntity.ok(accountService.getAccountById(id, getSubject(jwt)));
+        return ResponseEntity.ok(accountService.getAccountById(id, jwt.getSubject()));
     }
 
     @GetMapping("/by-number/{accountNumber}")
@@ -52,7 +52,7 @@ public class AccountController {
             @AuthenticationPrincipal Jwt jwt) {
             log.info("Creating account request: {}", request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(accountService.createAccount(request, getSubject(jwt)));
+                .body(accountService.createAccount(request, jwt.getSubject()));
     }
 
     // Endpoint to check if the account has sufficient balance for a transaction
@@ -71,8 +71,4 @@ public class AccountController {
         return ResponseEntity.noContent().build();
     }
 
-    // Helper method to extract user ID from JWT
-    private String getSubject(Jwt jwt) {
-        return jwt != null ? jwt.getSubject() : "local-test-user";
-    }
 }

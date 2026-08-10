@@ -123,8 +123,9 @@ logging:
 #           predicates:
 #             - Path=/ws/**
 
-#   security:
-#     oauth2:
-#       resourceserver:
-#         jwt:
-#           issuer-uri: http://keycloak:8080/realms/denario
+  spring:
+    security:
+      oauth2:
+        resourceserver:
+          jwt:
+            issuer-uri: http://localhost:8180/realms/onlinebanking

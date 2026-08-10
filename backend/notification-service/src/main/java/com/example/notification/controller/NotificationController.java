@@ -22,17 +22,14 @@ public class NotificationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
-                notificationService.getMyNotifications(getSubject(jwt), page, size));
+                notificationService.getMyNotifications(jwt.getSubject(), page, size));
     }
 
     @PatchMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal Jwt jwt) {
-        notificationService.markAllAsRead(getSubject(jwt));
+        notificationService.markAllAsRead(jwt.getSubject());
         return ResponseEntity.noContent().build();
     }
 
-    // Helper method to extract user ID from JWT
-    private String getSubject(Jwt jwt) {
-        return jwt != null ? jwt.getSubject() : "local-test-user";
-    }
+
 }

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.security.oauth2.server.resource.web.reactive.function.client.ServletBearerExchangeFilterFunction;
 
 import java.math.BigDecimal;
 
@@ -18,6 +19,7 @@ public class AccountServiceClient {
     public AccountServiceClient(@Value("${example.transaction.services.account-service-url}") String accountServiceUrl) {
         this.webClient = WebClient.builder()
                 .baseUrl(accountServiceUrl)
+                .filter(new ServletBearerExchangeFilterFunction())
                 .build();
     }
 

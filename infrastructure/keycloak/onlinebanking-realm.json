@@ -2,7 +2,7 @@
   "realm": "onlinebanking",
   "enabled": true,
   "displayName": "Online Banking",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,

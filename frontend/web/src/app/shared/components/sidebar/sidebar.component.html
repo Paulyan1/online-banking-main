@@ -37,8 +37,13 @@
 
   @if (!collapsed()) {
     <div class="user-info">
-      <span class="user-name">Penghan</span>
-      <span class="user-email">local-test-user</span>
+      <div class="user-name">
+        {{ authService.userProfile()?.name }}
+      </div>
+
+      <div class="user-username">
+        {{ authService.userProfile()?.preferredUsername }}
+      </div>
     </div>
   }
 
@@ -47,6 +52,7 @@
     class="logout-btn"
     [matTooltip]="'Logout'"
     matTooltipPosition="right"
+    (click)="authService.logout()"
   >
     <mat-icon>logout</mat-icon>
   </button>

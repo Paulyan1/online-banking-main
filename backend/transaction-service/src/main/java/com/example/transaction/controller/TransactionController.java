@@ -25,7 +25,7 @@ public class TransactionController {
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(transactionService.transfer(request, getSubject(jwt)));
+                .body(transactionService.transfer(request, jwt.getSubject()));
     }
 
     @GetMapping("/history")
@@ -35,7 +35,7 @@ public class TransactionController {
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
-                transactionService.getMyTransactions(getSubject(jwt), page, size));
+                transactionService.getMyTransactions(jwt.getSubject(), page, size));
     }
 
     @GetMapping("/history/{account}")
@@ -48,8 +48,4 @@ public class TransactionController {
                 transactionService.getTransactionByAccount(account, page, size));
     }
 
-    // Helper method to extract user ID from JWT
-    private String getSubject(Jwt jwt) {
-        return jwt != null ? jwt.getSubject() : "local-test-user";
-    }
 }

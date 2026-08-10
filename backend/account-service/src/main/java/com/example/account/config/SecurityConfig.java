@@ -20,14 +20,59 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    // Basic security configuration for the account service.
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
+        http
+            .csrf(csrf -> csrf.disable())
+
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/actuator/health",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**"
+                ).permitAll()
+
+                .requestMatchers(HttpMethod.GET, "/api/accounts/all")
+                .hasRole("ADMIN")
+
+                .anyRequest().authenticated()
+            )
+
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt
+                    .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
-                .build();
+            );
+
+        return http.build();
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            Map<String, Object> realmAccess =
+                    jwt.getClaimAsMap("realm_access");
+
+            if (realmAccess == null || !realmAccess.containsKey("roles")) {
+                return List.of();
+            }
+
+            @SuppressWarnings("unchecked")
+            Collection<String> roles =
+                    (Collection<String>) realmAccess.get("roles");
+
+            return roles.stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toList());
+        });
+
+        return converter;
     }
 }

@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-//import { AuthService } from '../.././../core/auth/auth.service';
+import { AuthService } from '../.././../core/auth/auth.service';
 
 interface NavItem {
   label: string;
@@ -20,7 +20,7 @@ interface NavItem {
   styleUrl: './sidebar.component.scss',
 })
 export class SidebarComponent {
-  //readonly authService = inject(AuthService);
+  readonly authService = inject(AuthService);
   readonly collapsed = input<boolean>(false);
   readonly mobileClose = output<void>();
 
@@ -31,7 +31,7 @@ export class SidebarComponent {
   ];
 
   logout(): void {
-    //this.authService.logout();
+    this.authService.logout();
   }
 
   onMobileClose(): void {
