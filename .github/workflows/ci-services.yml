@@ -1,0 +1,67 @@
+name: CI - Backend Services
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-services.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+jobs:
+  build-and-test:
+    name: Build and Test Services
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Test Account Service
+        run: |
+          cd backend/account-service
+          mvn -B test
+
+      - name: Test Transaction Service
+        run: |
+          cd backend/transaction-service
+          mvn -B test
+
+      - name: Test Notification Service
+        run: |
+          cd backend/notification-service
+          mvn -B test
+
+      - name: Test API Gateway
+        run: |
+          cd backend/api-gateway
+          mvn -B test
+
+      - name: Build all services
+        run: |
+          cd backend/account-service && mvn -B package -DskipTests
+          cd ../../backend/transaction-service && mvn -B package -DskipTests
+          cd ../../backend/notification-service && mvn -B package -DskipTests
+          cd ../../backend/api-gateway && mvn -B package -DskipTests
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-services
+          path: backend/*/target/surefire-reports/
+          retention-days: 7
+          if-no-files-found: ignore
