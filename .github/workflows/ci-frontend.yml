@@ -36,7 +36,13 @@ jobs:
         run: cd frontend/web && npm run lint --if-present
 
       - name: Run unit tests
-        run: cd frontend/web && npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage
+        run: |
+          cd frontend/web
+          if find src -name "*.spec.ts" -print -quit | grep -q .; then
+            npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage
+          else
+            echo "No unit tests found — skipping."
+          fi
 
       - name: Build production bundle
         run: cd frontend/web && npm run build
