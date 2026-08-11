@@ -20,11 +20,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        "[format_sql]": true
-
-#   flyway:
-#     enabled: true
-#     locations: classpath:db/migraaccountServiceUrl
+        format_sql: true
 
   rabbitmq:
     host: localhost
@@ -51,7 +47,6 @@ logging:
   level:
     '[com.example.notification]': DEBUG
 
-
 example:
   notification:
     services:
@@ -62,24 +57,32 @@ example:
         transaction-created: transaction.created.queue
         account-created: account.created.queue
 
-# ---
-# spring:
-#   config:
-#     activate:
-#       on-profile: docker
 
-#   datasource:
-#     url: jdbc:postgresql://postgres-notification:5432/notification_db
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
 
-#   rabbitmq:
-#     host: rabbitmq
+  datasource:
+    url: jdbc:postgresql://postgres-notification:5432/notification_db
+    username: postgres
+    password: 3128
 
-#   security:
-#     oauth2:
-#       resourceserver:
-#         jwt:
-#           issuer-uri: http://keycloak:8080/realms/denario
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
 
-# denario:
-#   services:
-#     account-service-url: http://account-service:8081
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/onlinebanking
+          jwk-set-uri: http://keycloak:8080/realms/onlinebanking/protocol/openid-connect/certs
+
+example:
+  notification:
+    services:
+      account-service-url: http://account-service:8081

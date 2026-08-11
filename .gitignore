@@ -82,3 +82,4 @@ Thumbs.db
 HELP.md
 coverage/
 **/coverage/
+infrastructure/keycloak/onlinebanking-realm.json

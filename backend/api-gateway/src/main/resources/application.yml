@@ -92,53 +92,60 @@ logging:
     com.denario: DEBUG
     org.springframework.cloud.gateway: INFO
 
-# ---
-# spring:
-#   config:
-#     activate:
-#       on-profile: docker
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
 
-#   cloud:
-#     gateway:
-#       routes:
-#         - id: account-service
-#           uri: http://account-service:8081
-#           predicates:
-#             - Path=/api/accounts/**
-#           filters:
-#             - name: CircuitBreaker
-#               args:
-#                 name: account-service
-#                 fallbackUri: forward:/fallback/account-service
+  cloud:
+    gateway:
+      routes:
+        - id: account-service
+          uri: http://account-service:8081
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: account-service
+                fallbackUri: forward:/fallback/account-service
 
-#         - id: transaction-service
-#           uri: http://transaction-service:8082
-#           predicates:
-#             - Path=/api/transactions/**
-#           filters:
-#             - name: CircuitBreaker
-#               args:
-#                 name: transaction-service
-#                 fallbackUri: forward:/fallback/transaction-service
+        - id: transaction-service
+          uri: http://transaction-service:8082
+          predicates:
+            - Path=/api/transactions/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: transaction-service
+                fallbackUri: forward:/fallback/transaction-service
 
-#         - id: notification-service
-#           uri: http://notification-service:8083
-#           predicates:
-#             - Path=/api/notifications/**
-#           filters:
-#             - name: CircuitBreaker
-#               args:
-#                 name: notification-service
-#                 fallbackUri: forward:/fallback/notification-service
+        - id: notification-service
+          uri: http://notification-service:8083
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notification-service
+                fallbackUri: forward:/fallback/notification-service
 
-#         - id: notification-ws
-#           uri: ws://notification-service:8083
-#           predicates:
-#             - Path=/ws/**
+        - id: notification-sockjs-info
+          order: -1
+          uri: http://notification-service:8083
+          predicates:
+            - Path=/ws/info
 
-  # spring:
-  #   security:
-  #     oauth2:
-  #       resourceserver:
-  #         jwt:
-  #           issuer-uri: http://localhost:8180/realms/onlinebanking
+        - id: notification-ws
+          order: 0
+          uri: ws://notification-service:8083
+          predicates:
+            - Path=/ws/**
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/onlinebanking
+          jwk-set-uri: http://keycloak:8080/realms/onlinebanking/protocol/openid-connect/certs

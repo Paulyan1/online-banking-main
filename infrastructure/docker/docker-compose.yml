@@ -1,0 +1,266 @@
+services:
+
+  postgres-account:
+    image: postgres:15-alpine
+    container_name: online-banking-postgres-account
+    environment:
+      POSTGRES_DB: account_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "3128"
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_account_data:/var/lib/postgresql/data
+    networks:
+      - online-banking-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d account_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  postgres-transaction:
+    image: postgres:15-alpine
+    container_name: online-banking-postgres-transaction
+    environment:
+      POSTGRES_DB: transaction_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "3128"
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_transaction_data:/var/lib/postgresql/data
+    networks:
+      - online-banking-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d transaction_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: online-banking-postgres-notification
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "3128"
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_notification_data:/var/lib/postgresql/data
+    networks:
+      - online-banking-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  postgres-keycloak:
+    image: postgres:15-alpine
+    container_name: online-banking-postgres-keycloak
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "3128"
+    volumes:
+      - postgres_keycloak_data:/var/lib/postgresql/data
+    networks:
+      - online-banking-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d keycloak_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.1
+    container_name: online-banking-keycloak
+
+    command: start-dev --import-realm
+
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: "3128"
+
+    ports:
+      - "8180:8080"
+
+    volumes:
+      - ../keycloak/onlinebanking-realm.json:/opt/keycloak/data/import/onlinebanking-realm.json
+
+    depends_on:
+      postgres-keycloak:
+        condition: service_healthy
+
+    networks:
+      - online-banking-network
+
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: online-banking-rabbitmq
+
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+    networks:
+      - online-banking-network
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  account-service:
+    build:
+      context: ../../backend/account-service
+      dockerfile: Dockerfile
+    image: online-banking-account-service:latest
+    container_name: online-banking-account-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-account:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - online-banking-network
+
+  transaction-service:
+    build:
+      context: ../../backend/transaction-service
+      dockerfile: Dockerfile
+
+    image: online-banking-transaction-service:latest
+    container_name: online-banking-transaction-service
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+    ports:
+      - "8082:8082"
+
+    depends_on:
+      postgres-transaction:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      account-service:
+        condition: service_started
+
+    networks:
+      - online-banking-network
+
+
+  notification-service:
+    build:
+      context: ../../backend/notification-service
+      dockerfile: Dockerfile
+
+    image: online-banking-notification-service:latest
+    container_name: online-banking-notification-service
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+    ports:
+      - "8083:8083"
+
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      account-service:
+        condition: service_started
+
+    networks:
+      - online-banking-network
+
+  api-gateway:
+    build:
+      context: ../../backend/api-gateway
+      dockerfile: Dockerfile
+
+    image: online-banking-api-gateway:latest
+    container_name: online-banking-api-gateway
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      keycloak:
+        condition: service_started
+      account-service:
+        condition: service_started
+      transaction-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+    networks:
+      - online-banking-network
+
+  frontend:
+    build:
+      context: ../../frontend/web
+      dockerfile: Dockerfile
+
+    image: online-banking-frontend:latest
+    container_name: online-banking-frontend
+
+    ports:
+      - "4200:80"
+
+    depends_on:
+      api-gateway:
+        condition: service_started
+      keycloak:
+        condition: service_started
+
+    networks:
+      - online-banking-network
+      
+volumes:
+  postgres_account_data:
+  postgres_transaction_data:
+  postgres_notification_data:
+  postgres_keycloak_data:
+  rabbitmq_data:
+
+
+networks:
+  online-banking-network:
+    driver: bridge
