@@ -26,11 +26,11 @@ spring:
 #     enabled: true
 #     locations: classpath:db/migraaccountServiceUrl
 
-#   rabbitmq:
-#     host: localhost
-#     port: 5672
-#     username: guest
-#     password: guest
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 
   security:
     oauth2:
@@ -56,13 +56,13 @@ example:
   transaction:
     services:
       account-service-url: http://localhost:8081
-#   rabbitmq:
-#     exchanges:
-#       transaction: transaction.exchange
-#     queues:
-#       transaction-created: transaction.created.queue
-#     routing-keys:
-#       transaction-created: transaction.created
+    rabbitmq:
+      exchanges:
+        transaction: transaction.exchange
+      queues:
+        transaction-created: transaction.created.queue
+      routing-keys:
+        transaction-created: transaction.created
 
 # ---
 # spring:

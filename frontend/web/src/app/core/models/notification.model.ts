@@ -12,13 +12,12 @@ export interface NotificationResponse {
 }
 
 export interface PagedNotificationsResponse {
-  content: NotificationResponse[];
+  notifications: NotificationResponse[];
+  page: number;
+  size: number;
   totalElements: number;
   totalPages: number;
-  number: number;
-  size: number;
-  first: boolean;
-  last: boolean;
+  unreadCount: number;
 }
 
 export interface WebSocketNotification {

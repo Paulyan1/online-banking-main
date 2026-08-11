@@ -30,12 +30,32 @@ spring:
  #   locations: classpath:db/migration
 
 
-#  rabbitmq:
-#     host: localhost
-#     port: 5672
-#     username: guest
-#     password: guest
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/onlinebanking
 
+  rabbitmq:
+      host: localhost
+      port: 5672
+      username: guest
+      password: guest
+
+example:
+  account:
+    rabbitmq:
+      exchanges:
+        account: account.exchange
+
+      queues:
+        account-created: account.created.queue
+        account-updated: account.updated.queue
+
+      routing-keys:
+        account-created: account.created
+        account-updated: account.updated
+        
   # security:
   #   oauth2:
   #     resourceserver:
@@ -86,9 +106,4 @@ logging:
 #   rabbitmq:
 #     host: rabbitmq
 
-  spring:
-    security:
-      oauth2:
-        resourceserver:
-          jwt:
-            issuer-uri: http://localhost:8180/realms/onlinebanking
+

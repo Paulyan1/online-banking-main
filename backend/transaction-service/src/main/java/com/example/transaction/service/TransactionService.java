@@ -27,7 +27,7 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountServiceClient accountServiceClient;
-    //private final TransactionEventPublisher eventPublisher;
+    private final TransactionEventPublisher eventPublisher;
 
     @Transactional
     public TransactionResponse transfer(TransferRequest request, String userId) {
@@ -70,7 +70,7 @@ public class TransactionService {
             transaction.setCompletedAt(LocalDateTime.now());
             transaction = transactionRepository.save(transaction);
 
-            //eventPublisher.publishTransactionCompleted(transaction);
+            eventPublisher.publishTransactionCompleted(transaction);
             log.info("Transfer completed: {}", transaction.getReference());
 
         } catch (Exception e) {

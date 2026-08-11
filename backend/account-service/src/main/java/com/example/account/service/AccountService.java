@@ -31,6 +31,7 @@ import java.util.Objects;
 public class AccountService {
     private final AccountRepository accountRepository; //Injected by Spring
     private final AccountNumberGeneratorService accountNumberGeneratorService; //Injected by Spring
+    private final AccountEventPublisher accountEventPublisher;
 
     /*
         * Retrieves all accounts of the authenticated user.
@@ -64,7 +65,8 @@ public class AccountService {
     public AccountResponse createAccount(CreateAccountRequest request, String userId) {
         log.info("Creating new {} account for user: {}", request.getAccountType(), userId);
 
-        String accountNumber = accountNumberGeneratorService.generateUniqueAccountNumber(); //Generate unique account number
+        String accountNumber =
+                accountNumberGeneratorService.generateUniqueAccountNumber();
 
         Account account = Account.builder()
                 .userId(userId)
@@ -76,8 +78,12 @@ public class AccountService {
                 .status(Account.AccountStatus.ACTIVE)
                 .build();
 
+        Account saved = accountRepository.save(
+                Objects.requireNonNull(account, "Account cannot be null")
+        );
 
-        Account saved = accountRepository.save(Objects.requireNonNull(account, "Account cannot be null")); //Save to DB and get the saved entity with ID
+        accountEventPublisher.publishAccountCreated(saved);
+
         log.info("Account created with ID: {}", saved.getId());
 
         return AccountResponse.from(saved);

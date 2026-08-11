@@ -22,14 +22,19 @@ export class NotificationService {
     return this.http.get<PagedNotificationsResponse>(this.baseUrl, { params });
   }
 
-  markAllAsRead(): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/read-all`, {});
+  markAllAsRead(): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/read-all`, {});
   }
 
   loadNotifications(page = 0, size = 20): void {
     this.getMyNotifications(page, size).subscribe({
-      next: (paged) => this.notifications.set(paged.content),
-      error: () => { /* silently fail */ }
+      next: (paged) => {
+        this.notifications.set(paged.notifications ?? []);
+      },
+      error: (err) => {
+        console.error('Failed to load notifications:', err);
+        this.notifications.set([]);
+      }
     });
   }
 
