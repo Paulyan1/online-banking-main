@@ -1,0 +1,51 @@
+services:
+  postgres-account:
+    ports: !override ["127.0.0.1:5435:5432"]
+  postgres-transaction:
+    ports: !override ["127.0.0.1:5436:5432"]
+  postgres-notification:
+    ports: !override ["127.0.0.1:5437:5432"]
+  keycloak:
+    environment:
+      KC_HOSTNAME: "https://paulsbank.duckdns.org"
+      KC_PROXY_HEADERS: "xforwarded"
+    ports: !override ["127.0.0.1:8180:8080"]
+  rabbitmq:
+    ports: !override
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+  account-service:
+    environment:
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "https://paulsbank.duckdns.org/realms/onlinebanking"
+    ports: !override ["127.0.0.1:8081:8081"]
+  transaction-service:
+    environment:
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "https://paulsbank.duckdns.org/realms/onlinebanking"
+    ports: !override ["127.0.0.1:8082:8082"]
+  notification-service:
+    environment:
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "https://paulsbank.duckdns.org/realms/onlinebanking"
+    ports: !override ["127.0.0.1:8083:8083"]
+  api-gateway:
+    environment:
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "https://paulsbank.duckdns.org/realms/onlinebanking"
+    ports: !override ["127.0.0.1:8080:8080"]
+  frontend:
+    ports: !override ["127.0.0.1:4200:80"]
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - online-banking-network
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

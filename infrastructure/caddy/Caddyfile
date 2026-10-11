@@ -1,0 +1,12 @@
+paulsbank.duckdns.org {
+    @blocked path /admin /admin/* /realms/master /realms/master/*
+    @keycloak path /realms/onlinebanking /realms/onlinebanking/* /resources/*
+    @backend path /api/* /ws/*
+
+    route {
+        respond @blocked "Forbidden" 403
+        reverse_proxy @keycloak keycloak:8080
+        reverse_proxy @backend api-gateway:8080
+        reverse_proxy frontend:80
+    }
+}

@@ -49,7 +49,7 @@ public class SecurityConfig {
 
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(List.of("http://localhost:4200", "https://paulsbank.duckdns.org"));
 
         config.setAllowedMethods(List.of(
                 "GET",
