@@ -1,6 +1,5 @@
 <img width="2560" height="1403" alt="image" src="https://github.com/user-attachments/assets/c5e6ec20-f754-4bd6-8fb2-2abace56c6f2" />
 
-
 # Online Banking Platform
 
 A full-stack digital banking application built with **Spring Boot, Angular, PostgreSQL, Keycloak, RabbitMQ, and Docker**, deployed on **AWS EC2**.
@@ -35,8 +34,9 @@ The public demo runs on an AWS EC2 instance and may be unavailable when the inst
               │                  │                  │
               ▼                  ▼                  ▼
          account_db       transaction_db      notification_db
-              │                  │
-              └────── RabbitMQ ──┴───────────────► Notifications
+
+Account events:      Account Service ──► RabbitMQ ──► Notification Service
+AWS transfer events: Transaction Service ──► Amazon SQS ──► AWS Lambda ──► CloudWatch Logs
 ```
 
 **Keycloak** provides centralized authentication and authorization using OAuth2/OIDC and JWT.
@@ -107,25 +107,37 @@ transaction-service
 
 ### RabbitMQ for asynchronous events
 
-RabbitMQ is used for operations that do not need to block the main request.
-
-For example:
+RabbitMQ is used for asynchronous notifications, including account creation events.
 
 ```text
 account-service
       │
-      └── account.created ───────┐
-                                 ▼
-                          notification-service
-
-transaction-service
-      │
-      └── transaction.created ───┘
+      └── account.created ──► RabbitMQ ──► notification-service
 ```
 
-This prevents notification processing from becoming part of the critical transaction path.
+The local environment also uses RabbitMQ for transfer events.
 
-It also makes it easier to add future consumers such as audit, analytics, or fraud-monitoring services.
+This keeps notification processing separate from the main request and makes it easier to add future event consumers.
+
+### Amazon SQS and AWS Lambda for transfer events
+
+In the AWS environment, the transaction service publishes `TRANSACTION_COMPLETED` events to **Amazon SQS** instead of RabbitMQ.
+
+A **Node.js 24 AWS Lambda** function consumes these events and writes the event type and SQS message ID to **CloudWatch Logs**.
+
+```text
+transaction-service
+        │
+        └── TRANSACTION_COMPLETED ──► Amazon SQS
+                                           │
+                                           ▼
+                                       AWS Lambda
+                                           │
+                                           ▼
+                                     CloudWatch Logs
+```
+
+This demonstrates serverless event processing without deploying a separate consumer service for AWS transfer events. The Lambda function logs events but does not create transfer notifications in the application database or send WebSocket updates.
 
 ### API Gateway
 
@@ -164,7 +176,9 @@ This separates external HTTP routing from internal service communication.
 | Frontend | Angular |
 | Database | PostgreSQL |
 | Authentication | Keycloak, OAuth2/OIDC, JWT |
-| Messaging | RabbitMQ |
+| Messaging | RabbitMQ, Amazon SQS |
+| Serverless | AWS Lambda (Node.js 24) |
+| Logging | Amazon CloudWatch Logs |
 | Real-time communication | WebSocket / STOMP |
 | Resilience | Resilience4j |
 | Containers | Docker, Docker Compose |
@@ -203,6 +217,10 @@ online-banking-main/
 │
 ├── .github/
 │   └── workflows/
+│
+├── serverless/
+│   └── transfer-handler/
+│       └── index.mjs
 │
 ├── scripts/
 ├── Makefile
@@ -297,18 +315,20 @@ The deployment uses the same microservices as the local environment, with additi
           PostgreSQL  PostgreSQL  PostgreSQL
                           │
                        RabbitMQ
+
+     Transaction Service ──► Amazon SQS ──► AWS Lambda ──► CloudWatch Logs
 ```
 
-All application components run as Docker containers within the EC2 instance.
+The application services, databases, RabbitMQ, and Caddy run as Docker containers on the EC2 instance. Amazon SQS, Lambda, and CloudWatch are managed AWS services.
 
-Caddy handles incoming HTTPS traffic, while service-to-service communication uses the internal Docker network.
+Caddy handles incoming HTTPS traffic, while communication between containers uses the internal Docker network.
 
 ### Docker Compose Configuration
 
 The deployment uses two Compose files:
 
 - `docker-compose.yml` defines the application services and shared infrastructure.
-- `docker-compose.aws.yml` adds AWS-specific configuration, including local port bindings, HTTPS issuer settings, and the Caddy reverse proxy.
+- `docker-compose.aws.yml` adds AWS-specific configuration, including local port bindings, HTTPS issuer settings, the Caddy reverse proxy, and Amazon SQS event publishing.
 
 With the EC2 instance, DNS, service credentials, and Keycloak configuration prepared, the application can be started using:
 
@@ -344,6 +364,12 @@ This enables production build optimization while replacing the local environment
 
 The same codebase can therefore be used for local development and cloud deployment without manually changing API endpoints.
 
+### Serverless transfer event processing
+
+In AWS, `transaction-service` sends transfer events to the `online-banking-transfer-events` SQS queue using an EC2 IAM role. The Lambda function in `serverless/transfer-handler/index.mjs` processes queue messages using a separate execution role.
+
+The SQS trigger invokes the function automatically, and CloudWatch Logs records the processed events. The trigger can be disabled when the demo is not in use.
+
 ### Authentication
 
 Keycloak is configured to use the public HTTPS domain as its OAuth2/OIDC issuer.
@@ -375,7 +401,9 @@ This project focuses on practical backend, distributed-system, and cloud deploym
 - microservices architecture
 - service-owned databases
 - REST-based service communication
-- event-driven messaging
+- event-driven messaging with RabbitMQ and Amazon SQS
+- AWS Lambda event processing with Node.js
+- CloudWatch logging for transfer events
 - OAuth2/OIDC authentication
 - API Gateway patterns
 - circuit-breaker fault handling
