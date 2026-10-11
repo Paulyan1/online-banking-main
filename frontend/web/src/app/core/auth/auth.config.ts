@@ -12,5 +12,5 @@ export const authConfig: AuthConfig = {
   showDebugInformation: !environment.production,
   clearHashAfterLogin: false,
   nonceStateSeparator: 'semicolon',
-  requireHttps: false,
+  requireHttps: environment.production,
 };

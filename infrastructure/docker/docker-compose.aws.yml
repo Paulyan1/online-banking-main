@@ -31,6 +31,9 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "https://paulsbank.duckdns.org/realms/onlinebanking"
     ports: !override ["127.0.0.1:8080:8080"]
   frontend:
+    build:
+      args:
+        ANGULAR_CONFIGURATION: "production,aws"
     ports: !override ["127.0.0.1:4200:80"]
 
   caddy:

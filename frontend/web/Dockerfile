@@ -7,7 +7,8 @@ RUN npm ci
 
 COPY . .
 
-RUN npx ng build web --configuration production
+ARG ANGULAR_CONFIGURATION=production
+RUN npx ng build web --configuration "$ANGULAR_CONFIGURATION"
 
 
 FROM nginx:alpine
