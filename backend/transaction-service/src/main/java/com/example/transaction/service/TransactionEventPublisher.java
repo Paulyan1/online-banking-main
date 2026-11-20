@@ -52,10 +52,27 @@ public class TransactionEventPublisher {
                     throw new IllegalStateException("SQS Queue URL is missing");
                 }
 
-                Map<String, String> sqsEvent = Map.of(
-                    "eventType", "TRANSACTION_COMPLETED",
-                    "transactionId", String.valueOf(transaction.getId())
-                );
+                String transactionId = String.valueOf(transaction.getId());
+                String eventId = transaction.getReference() != null
+                        ? transaction.getReference()
+                        : transactionId;
+
+                Map<String, String> sqsEvent = new HashMap<>();
+                sqsEvent.put("eventType", "TRANSACTION_COMPLETED");
+                sqsEvent.put("eventId", eventId);
+                sqsEvent.put("transactionId", transactionId);
+                if (transaction.getReference() != null) {
+                    sqsEvent.put("reference", transaction.getReference());
+                }
+                if (transaction.getInitiatedBy() != null) {
+                    sqsEvent.put("initiatedBy", transaction.getInitiatedBy());
+                }
+                if (transaction.getSourceAccount() != null) {
+                    sqsEvent.put("sourceAccount", transaction.getSourceAccount());
+                }
+                if (transaction.getTargetAccount() != null) {
+                    sqsEvent.put("targetAccount", transaction.getTargetAccount());
+                }
 
                 try (SqsClient sqs = SqsClient.create()) {
                     sqs.sendMessage(

@@ -36,7 +36,7 @@ The public demo runs on an AWS EC2 instance and may be unavailable when the inst
          account_db       transaction_db      notification_db
 
 Account events:      Account Service ──► RabbitMQ ──► Notification Service
-AWS transfer events: Transaction Service ──► Amazon SQS ──► AWS Lambda ──► CloudWatch Logs
+AWS transfer events: Transaction Service ──► Amazon SQS ──► AWS Lambda ──► DynamoDB
 ```
 
 **Keycloak** provides centralized authentication and authorization using OAuth2/OIDC and JWT.
@@ -123,21 +123,23 @@ This keeps notification processing separate from the main request and makes it e
 
 In the AWS environment, the transaction service publishes `TRANSACTION_COMPLETED` events to **Amazon SQS** instead of RabbitMQ.
 
-A **Node.js 24 AWS Lambda** function consumes these events and writes the event type and SQS message ID to **CloudWatch Logs**.
+A **Node.js 24 AWS Lambda** function consumes these events. For each message it claims a DynamoDB item keyed by the transfer event id (`attribute_not_exists(eventId)`). The first delivery writes a notification record and logs it. A duplicate delivery loses the conditional write and is skipped. If handling fails, the claim is released and the invocation fails, so SQS can retry the message and then move it to the dead-letter queue.
+
+The DynamoDB item is a notification record (`eventId`, `transactionId`, `reference`, `userId`, account numbers, `type`, `status`, `createdAt`, and a 30-day `ttl`). Account balances and transfer amounts stay in PostgreSQL and are not written to DynamoDB.
 
 ```text
 transaction-service
         │
-        └── TRANSACTION_COMPLETED ──► Amazon SQS
-                                           │
+        └── TRANSACTION_COMPLETED ──► Amazon SQS ──► AWS Lambda
+                                           │              │
+                                           │              ├── first delivery ──► DynamoDB
+                                           │              └── duplicate ──► skip
                                            ▼
-                                       AWS Lambda
-                                           │
-                                           ▼
-                                     CloudWatch Logs
+                                    dead-letter queue
+                                    (after repeated failures)
 ```
 
-This demonstrates serverless event processing without deploying a separate consumer service for AWS transfer events. The Lambda function logs events but does not create transfer notifications in the application database or send WebSocket updates.
+CloudWatch Logs still receives the Lambda log line. The function does not send WebSocket updates. The table, dead-letter queue, and Lambda IAM role are defined in `infrastructure/aws/transfer-notifications.yml` and are not deployed by this repository.
 
 ### API Gateway
 
@@ -174,7 +176,7 @@ This separates external HTTP routing from internal service communication.
 | Backend | Java 21, Spring Boot 3 |
 | API Gateway | Spring Cloud Gateway |
 | Frontend | Angular |
-| Database | PostgreSQL |
+| Database | PostgreSQL (accounts, transfers); DynamoDB (notification idempotency) |
 | Authentication | Keycloak, OAuth2/OIDC, JWT |
 | Messaging | RabbitMQ, Amazon SQS |
 | Serverless | AWS Lambda (Node.js 24) |
@@ -316,10 +318,12 @@ The deployment uses the same microservices as the local environment, with additi
                           │
                        RabbitMQ
 
-     Transaction Service ──► Amazon SQS ──► AWS Lambda ──► CloudWatch Logs
+     Transaction Service ──► Amazon SQS ──► AWS Lambda ──► DynamoDB
+                                              │
+                                              └── failed messages ──► SQS DLQ
 ```
 
-The application services, databases, RabbitMQ, and Caddy run as Docker containers on the EC2 instance. Amazon SQS, Lambda, and CloudWatch are managed AWS services.
+The application services, databases, RabbitMQ, and Caddy run as Docker containers on the EC2 instance. Amazon SQS, Lambda, DynamoDB, and CloudWatch are managed AWS services. PostgreSQL remains the system of record for accounts and transfers.
 
 Caddy handles incoming HTTPS traffic, while communication between containers uses the internal Docker network.
 
@@ -366,9 +370,33 @@ The same codebase can therefore be used for local development and cloud deployme
 
 ### Serverless transfer event processing
 
-In AWS, `transaction-service` sends transfer events to the `online-banking-transfer-events` SQS queue using an EC2 IAM role. The Lambda function in `serverless/transfer-handler/index.mjs` processes queue messages using a separate execution role.
+In AWS, `transaction-service` sends transfer events to the `online-banking-transfer-events` SQS queue using an EC2 IAM role. The Lambda function in `serverless/transfer-handler/index.mjs` processes queue messages using the execution role defined in `infrastructure/aws/transfer-notifications.yml`.
 
-The SQS trigger invokes the function automatically, and CloudWatch Logs records the processed events. The trigger can be disabled when the demo is not in use.
+Each message is claimed in `online-banking-transfer-notifications` with a conditional `PutItem` on `eventId`. The event id is the transfer reference when the publisher has one, otherwise the SQS message id. Concurrent duplicate deliveries cannot both pass that condition, so the notification is handled once. A failed invocation leaves the message on the queue. After `maxReceiveCount` (5 in the template) SQS moves it to `online-banking-transfer-events-dlq`. The template creates that dead-letter queue and prints the redrive policy; attach the policy to the existing queue when you next change the AWS setup. This repository does not deploy the template.
+
+The Lambda reads `TRANSFER_NOTIFICATIONS_TABLE` and `AWS_REGION`. Set `DYNAMODB_ENDPOINT` only when pointing the function at DynamoDB Local.
+
+### Local DynamoDB
+
+`docker-compose.yml` includes DynamoDB Local on port `8000` for trying the handler without AWS. Create the same table the Lambda expects:
+
+```bash
+aws dynamodb create-table \
+  --endpoint-url http://localhost:8000 \
+  --region ca-central-1 \
+  --table-name online-banking-transfer-notifications \
+  --attribute-definitions AttributeName=eventId,AttributeType=S \
+  --key-schema AttributeName=eventId,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+```
+
+The idempotency tests do not need that container:
+
+```bash
+cd serverless/transfer-handler
+npm ci
+npm test
+```
 
 ### Authentication
 
@@ -403,6 +431,8 @@ This project focuses on practical backend, distributed-system, and cloud deploym
 - REST-based service communication
 - event-driven messaging with RabbitMQ and Amazon SQS
 - AWS Lambda event processing with Node.js
+- DynamoDB conditional writes for idempotent notifications
+- SQS dead-letter handling for failed notification deliveries
 - CloudWatch logging for transfer events
 - OAuth2/OIDC authentication
 - API Gateway patterns
