@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Idempotent transfer notifications for the online-banking Lambda.
+  DynamoDB stores the notification record only. Account balances and transfers
+  stay in PostgreSQL. This template is a definition for review; nothing in this
+  repository deploys it.
+
+Parameters:
+  TableName:
+    Type: String
+    Default: online-banking-transfer-notifications
+  TransferEventsQueueName:
+    Type: String
+    Default: online-banking-transfer-events
+    Description: Existing SQS queue that already receives TRANSACTION_COMPLETED events.
+  MaxReceiveCount:
+    Type: Number
+    Default: 5
+    Description: Deliveries before SQS moves a failed message to the dead-letter queue.
+
+Resources:
+  TransferNotificationsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  TransferEventsDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${TransferEventsQueueName}-dlq'
+      MessageRetentionPeriod: 1209600
+
+  TransferHandlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: online-banking-transfer-handler
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: transfer-notification-idempotency
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: DynamoNotificationRecord
+                Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:GetItem
+                Resource: !GetAtt TransferNotificationsTable.Arn
+              - Sid: ConsumeTransferQueue
+                Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource: !Sub 'arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${TransferEventsQueueName}'
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/online-banking-transfer-handler:*'
+
+Outputs:
+  TransferNotificationsTableName:
+    Value: !Ref TransferNotificationsTable
+  TransferNotificationsTableArn:
+    Value: !GetAtt TransferNotificationsTable.Arn
+  TransferEventsDlqArn:
+    Value: !GetAtt TransferEventsDlq.Arn
+  TransferEventsDlqUrl:
+    Value: !Ref TransferEventsDlq
+  TransferHandlerRoleArn:
+    Value: !GetAtt TransferHandlerRole.Arn
+  # Attach this redrive policy to the existing transfer-events queue.
+  # Replace the dead-letter ARN with TransferEventsDlqArn. maxReceiveCount is MaxReceiveCount.
+  ExistingQueueRedrivePolicy:
+    Description: JSON redrive policy for the existing transfer-events queue. Not applied by this template.
+    Value: !Sub >
+      {"deadLetterTargetArn":"${TransferEventsDlq.Arn}","maxReceiveCount":"${MaxReceiveCount}"}

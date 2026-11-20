@@ -252,7 +252,16 @@ services:
 
     networks:
       - online-banking-network
-      
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: online-banking-dynamodb
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8000:8000"
+    networks:
+      - online-banking-network
+
 volumes:
   postgres_account_data:
   postgres_transaction_data:
