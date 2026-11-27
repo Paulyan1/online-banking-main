@@ -2,7 +2,7 @@
 
 # Online Banking Platform
 
-A full-stack digital banking application built with **Spring Boot, Angular, PostgreSQL, Keycloak, RabbitMQ, and Docker**, deployed on **AWS EC2**.
+A full-stack digital banking application built with **Java 21, Spring Boot, Spring Cloud Gateway, Angular, PostgreSQL, Keycloak, RabbitMQ, and Docker**, deployed on **AWS EC2**.
 
 The project uses a microservices architecture to separate account management, transaction processing, and notifications into independent services.
 
@@ -11,6 +11,16 @@ The application supports account creation, money transfers, transaction history,
 **Live Demo:** https://paulsbank.duckdns.org
 
 The public demo runs on an AWS EC2 instance and may be unavailable when the instance is stopped.
+
+## Highlights
+
+- **Microservices with Java 21 and Spring Boot 3**: account, transaction, and notification services, each with its own PostgreSQL database
+- **Spring Cloud Gateway** as the single entry point, with JWT validation, per-route **Resilience4j circuit breakers** and fallback endpoints, CORS, and WebSocket routing
+- **Keycloak (OAuth2/OIDC)** for authentication; the Angular app uses the Authorization Code Flow and every service validates JWT access tokens
+- **Synchronous and asynchronous communication**: REST calls with token relay between services, **RabbitMQ** events, and **Amazon SQS + AWS Lambda** for transfer events in AWS
+- **Real-time notifications** over WebSocket / STOMP
+- **Unit tests** with JUnit 5 and Mockito for transfer and balance rules, run by **GitHub Actions** on every push and pull request
+- **AWS**: deployed on **Amazon EC2** with Docker Compose and a Caddy HTTPS reverse proxy; transfer events flow through **Amazon SQS** to an **AWS Lambda** function that logs them to **Amazon CloudWatch Logs**
 
 ## Architecture
 
@@ -49,10 +59,10 @@ In the AWS environment, **Caddy** acts as a reverse proxy in front of the applic
 
 | Service | Responsibility |
 | --- | --- |
-| `api-gateway` | Routes external requests to backend services |
-| `account-service` | Manages customer accounts and account operations |
+| `api-gateway` | Routes external requests to backend services, validates JWTs, and applies circuit breakers |
+| `account-service` | Manages customer accounts, balance checks, and balance updates |
 | `transaction-service` | Processes transfers and transaction history |
-| `notification-service` | Consumes events and delivers real-time notifications |
+| `notification-service` | Consumes events, stores notifications, and pushes them to the browser over WebSocket |
 
 ## Key Design Decisions
 
@@ -95,15 +105,17 @@ This provides centralized:
 
 REST communication is used when a service requires an immediate result before continuing.
 
-For example, transaction processing may need account information before completing a transfer.
+For example, before completing a transfer, the transaction service checks the source account's balance and then updates both balances through the account service.
 
 ```text
 transaction-service
         │
-        │ REST
+        │ REST (WebClient, user's JWT forwarded)
         ▼
  account-service
 ```
+
+The transaction service calls the account service with **Spring WebClient** and forwards the caller's bearer token, so the account service applies the same authentication and authorization rules as for any other request.
 
 ### RabbitMQ for asynchronous events
 
@@ -139,18 +151,26 @@ transaction-service
 
 This demonstrates serverless event processing without deploying a separate consumer service for AWS transfer events. The Lambda function logs events but does not create transfer notifications in the application database or send WebSocket updates.
 
-### API Gateway
+### API Gateway (Spring Cloud Gateway)
 
-Clients communicate with backend services through Spring Cloud Gateway instead of calling each service directly.
+Clients communicate with backend services through **Spring Cloud Gateway** instead of calling each service directly.
+
+| Route | Target |
+| --- | --- |
+| `/api/accounts/**` | `account-service` |
+| `/api/transactions/**` | `transaction-service` |
+| `/api/notifications/**` | `notification-service` |
+| `/ws/**` | `notification-service` (WebSocket / SockJS) |
 
 The gateway provides:
 
-- centralized routing
-- JWT authentication
-- CORS configuration
-- WebSocket routing
-- circuit breakers
-- fallback handling
+- **centralized routing** configured in `application.yml`, with a separate `docker` profile for container networking
+- **JWT authentication**: the gateway is an OAuth2 resource server that validates Keycloak access tokens; `/api/**` requires a valid token
+- **circuit breakers**: every service route is wrapped in a Resilience4j circuit breaker
+- **fallback handling**: when a service is down, the gateway returns a clear fallback response from `/fallback/{service}` instead of failing the whole application
+- **CORS configuration** for the Angular frontend
+- **WebSocket routing** for real-time notifications
+- **health and gateway metrics** through Spring Boot Actuator
 
 ### HTTPS and reverse proxy
 
@@ -171,16 +191,18 @@ This separates external HTTP routing from internal service communication.
 
 | Area | Technology |
 | --- | --- |
-| Backend | Java 21, Spring Boot 3 |
-| API Gateway | Spring Cloud Gateway |
-| Frontend | Angular |
-| Database | PostgreSQL |
-| Authentication | Keycloak, OAuth2/OIDC, JWT |
-| Messaging | RabbitMQ, Amazon SQS |
+| Backend | Java 21, Spring Boot 3, Spring Data JPA, Spring Security |
+| API Gateway | Spring Cloud Gateway, Resilience4j |
+| Service-to-service calls | Spring WebClient with bearer token relay |
+| Frontend | Angular 20, angular-oauth2-oidc |
+| Database | PostgreSQL 15 |
+| Authentication | Keycloak 26, OAuth2/OIDC, JWT |
+| Messaging | RabbitMQ 3.13, Amazon SQS |
 | Serverless | AWS Lambda (Node.js 24) |
 | Logging | Amazon CloudWatch Logs |
-| Real-time communication | WebSocket / STOMP |
-| Resilience | Resilience4j |
+| Real-time communication | WebSocket / STOMP over SockJS |
+| API documentation | springdoc-openapi (Swagger UI) |
+| Testing | JUnit 5, Mockito |
 | Containers | Docker, Docker Compose |
 | Cloud Infrastructure | AWS EC2 |
 | Reverse Proxy / HTTPS | Caddy |
@@ -213,10 +235,12 @@ online-banking-main/
 │   ├── docker/
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.aws.yml
-│   └── keycloak/
+│   └── keycloak/              # realm export (not committed, see below)
 │
 ├── .github/
 │   └── workflows/
+│       ├── ci-services.yml
+│       └── ci-frontend.yml
 │
 ├── serverless/
 │   └── transfer-handler/
@@ -233,6 +257,9 @@ online-banking-main/
 
 - Docker
 - Docker Compose
+- A Keycloak realm export at `infrastructure/keycloak/onlinebanking-realm.json`
+
+The realm file is imported by Keycloak on startup. It is listed in `.gitignore` and is not committed, so export your own `onlinebanking` realm to that path before the first start.
 
 ### Start the application
 
@@ -276,11 +303,50 @@ make down
 | Keycloak | `http://localhost:8180` |
 | RabbitMQ Management | `http://localhost:15672` |
 
+### API documentation
+
+Each business service exposes its OpenAPI documentation through Swagger UI:
+
+| Service | Swagger UI |
+| --- | --- |
+| Account Service | `http://localhost:8081/swagger-ui.html` |
+| Transaction Service | `http://localhost:8082/swagger-ui.html` |
+| Notification Service | `http://localhost:8083/swagger-ui.html` |
+
+## Testing and CI
+
+Business rules are covered by unit tests written with **JUnit 5** and **Mockito**:
+
+- **Account service**: balance checks (sufficient, insufficient, account not found) and balance updates (debit, insufficient funds, account not operational)
+- **Transaction service**: the transfer flow (successful transfer, insufficient balance, same source and target account, target account not found) and request validation for non-positive amounts
+
+Run the tests for a service:
+
+```bash
+cd backend/transaction-service
+mvn test
+```
+
+**GitHub Actions** runs two workflows on pushes and pull requests to `main`:
+
+- `ci-services.yml` sets up Java 21, runs the tests for every backend service, builds all services, and uploads the test reports
+- `ci-frontend.yml` installs dependencies, runs lint and unit tests when present, and builds the Angular production bundle
+
 ## AWS Deployment
 
 The application is deployed on a single **AWS EC2 instance running Amazon Linux 2023**, with Docker Compose managing the application containers.
 
 The deployment uses the same microservices as the local environment, with additional configuration for HTTPS, authentication, and external access.
+
+### AWS Services
+
+| Service | How it is used |
+| --- | --- |
+| **Amazon EC2** | Hosts the whole stack (Amazon Linux 2023) with Docker Compose: the Spring Boot services, Angular frontend, PostgreSQL, RabbitMQ, Keycloak, and the Caddy reverse proxy |
+| **Amazon SQS** | `transaction-service` publishes `TRANSACTION_COMPLETED` events to the `online-banking-transfer-events` queue (`ca-central-1`) with the AWS SDK for Java v2 |
+| **AWS Lambda** | A Node.js 24 function (`serverless/transfer-handler/index.mjs`) is triggered by the SQS queue and processes each transfer event |
+| **Amazon CloudWatch Logs** | Records every event the Lambda function processes, with the event type and SQS message ID |
+| **AWS IAM** | The EC2 instance role allows `transaction-service` to send messages to SQS, and the Lambda function runs with a separate execution role, so no AWS keys are stored in the application |
 
 ### Deployment Architecture
 
@@ -398,20 +464,23 @@ This AWS deployment is intended for demonstration and uses test data only.
 
 This project focuses on practical backend, distributed-system, and cloud deployment concepts:
 
-- microservices architecture
+- microservices architecture with Java 21 and Spring Boot
 - service-owned databases
-- REST-based service communication
+- REST-based service communication with token relay
 - event-driven messaging with RabbitMQ and Amazon SQS
 - AWS Lambda event processing with Node.js
 - CloudWatch logging for transfer events
-- OAuth2/OIDC authentication
-- API Gateway patterns
-- circuit-breaker fault handling
+- OAuth2/OIDC authentication with Keycloak
+- API Gateway patterns with Spring Cloud Gateway
+- circuit-breaker fault handling with Resilience4j
 - real-time WebSocket notifications
+- unit testing with JUnit 5 and Mockito
 - Docker-based local environments
 - AWS EC2 deployment
 - HTTPS reverse proxy configuration
 - environment-specific application builds
-- CI workflows
+- CI workflows with GitHub Actions
 
 The goal of the project is to demonstrate how these patterns can be combined and deployed as a banking-style application.
+
+
